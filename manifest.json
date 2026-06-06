@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "Songsterr YouTube Overlay",
+    "version": "1.0.0",
+    "description": "Mutes MIDI and overlays YouTube audio on Songsterr",
+    "permissions": ["ActiveTab", "scripting"],
+    "host_permissions": ["*://*.songsterr.com/*"],
+    "content_scripts": [
+        {
+            "matches": ["*://*.songsterr.com/*"],
+            "js": ["content.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    }
+}
