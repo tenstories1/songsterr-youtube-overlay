@@ -82,3 +82,30 @@ function waitForPlayback() {
 }
 
 waitForPlayback();
+
+// Auto dismiss paywall popup
+function dismissUpgradePopup() {
+  const observer = new MutationObserver(() => {
+    // Searching for "continue with sync pauses link"
+    const links = document.querySelectorAll('a, button, span');
+    for (const el of links) {
+      if (el.textContent.trim().toLowerCase().includes('continue with sync pauses')) {
+        el.click();
+        console.log('[Songsterr overlay] Dismised paywall popup');
+        return;
+      }
+    }
+
+    // Fallback: close any modals/overlays that appear
+    const modal = document.querySelector('[class*="modal"], [class*="Modal"], [class*="overlay"], [class*="Overlay"], [class*="paywall"], [class*="Paywall"]');
+    if (mopdal) {
+      // Find close button
+      const closeBtn = modal.querySelector('[class*="close"], [class*="Close"], [aria-label="close"]');
+      if (closeBtn) closeBtn.click();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+dismissUpgradePopup();
