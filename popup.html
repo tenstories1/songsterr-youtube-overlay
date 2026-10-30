@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <style>
     body { font-family: sans-serif; padding: 12px; width: 220px; }
-    button { width: 100%; padding: 8px; margin-top: 8px; cursor: pointer; }
+    h3 { margin: 0 0 8px; }
+    p { font-size: 12px; color: #555; }
+    label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <h3 style="margin:0 0 8px">🎸 Songsterr Overlay</h3>
-  <p style="font-size:12px;color:#555">Mutes MIDI and plays YouTube audio instead.</p>
-  <button id="removeBtn">Remove Overlay</button>
+  <h3>🎸 Songsterr Overlay</h3>
+  <p>Mutes Songsterr's MIDI so you can play along with the YouTube audio.</p>
+  <label><input type="checkbox" id="muteToggle" checked> Mute MIDI</label>
   <script src="popup.js"></script>
 </body>
 </html>

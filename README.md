@@ -1,14 +1,13 @@
 # Songsterr YouTube Overlay
-A Chrome extension that mutes Songsterr's MIDI playback and overlays the official YouTube audio instead
+A Chrome extension that mutes Songsterr's MIDI playback so you hear the YouTube audio instead, and auto-dismisses the "continue with sync pauses" popup
 
 ---
 
 ## Features
 
- - Mutes MIDI audio and replaces it with original YouTube audio
- - Overlays original YouTube video in the normal spot
- - Auto detects linked song on YouTube
- - Removable via extension pop up (if you want MIDI for some reason)
+ - Mutes Songsterr's MIDI/synth audio (Web Audio) output
+ - Auto-dismisses the "continue with sync pauses" popup
+ - Toggle MIDI muting on/off from the extension popup — applies instantly, no reload
 
  ---
 
@@ -18,59 +17,55 @@ A Chrome extension that mutes Songsterr's MIDI playback and overlays the officia
  This extension is not on the Chrome web store. You must load it locally.
 
  1. Download or clone this repository
- 2. Open Chrome and navigate to `chrome://extensions`
+ 2. Open Chrome (version 111 or newer) and navigate to `chrome://extensions`
  3. Enable **Developer Mode** toggle in the top right corner
  4. Click **Load Unpacked**
- 5. Select the `songsterr-youtube-overlay` folder
+ 5. Select the `1.1.0` folder
  6. The extension is now active
 
  ---
 
  ## Usage
 
- 1. Go to [songsterr.com](https://www.songsterr.com) and open any song
+1. Go to [songsterr.com](https://www.songsterr.com) and open any song
 2. The extension automatically:
    - Mutes the MIDI audio output
-   - Detects the song's linked YouTube video
-   - Injects a YouTube player in the bottom-right corner of the page
-3. Press play on the YouTube overlay to hear the real track
-4. To **remove the overlay**, click the extension icon in your toolbar and hit **Remove Overlay**
+   - Clicks "continue with sync pauses" whenever that popup appears
+3. To **hear the MIDI again**, click the extension icon in your toolbar and untick **Mute MIDI**
 
 ---
 
 ## File Structure
- 
+
 ```
-songsterr-youtube-overlay/
+1.1.0/
 ├── manifest.json      # Extension config and permissions
-├── content.js         # Core logic: MIDI muting + YouTube injection
+├── mute.js            # Page-world script: mutes Web Audio output
+├── content.js         # Popup dismissal + relays mute setting to mute.js
 ├── popup.html         # Toolbar popup UI
-├── popup.js           # Popup button logic
+├── popup.js           # Mute toggle logic
 └── README.md
 ```
- 
+
 ---
 
 ## Troubleshooting
- 
+
 | Problem | Fix |
 |---|---|
-| MIDI still audible | Change `"run_at": "document_idle"` to `"document_start"` in `manifest.json` so the audio intercept runs earlier |
-| No YouTube overlay appears | Open DevTools → Network tab, look for API responses containing a YouTube URL, and update `getYouTubeId()` in `content.js` to match |
-| YouTube won't autoplay | Click anywhere on the page first, then reload — Chrome requires a user gesture before autoplay is permitted |
-| Extension won't load | Ensure `"version"` in `manifest.json` is in `1.0.0` format (1–4 dot-separated integers) |
- 
+| MIDI still audible | Reload the Songsterr tab after installing/updating — `mute.js` must load before the page's audio starts |
+| Popup isn't dismissed | Songsterr may have changed the link text; update `SYNC_PAUSES_XPATH` in `content.js` |
+| Extension won't load | Requires Chrome 111+ (for `"world": "MAIN"` content scripts) |
+
 ---
 
 | Permission | Reason |
 |---|---|
-| `activeTab` | Allows the popup to interact with the current tab |
-| `scripting` | Allows the popup to inject the remove-overlay script |
-| `*://*.songsterr.com/*` | Limits content script to Songsterr pages only |
- 
+| `storage` | Remembers the Mute MIDI setting |
+| `*://*.songsterr.com/*` (content script match) | Limits the scripts to Songsterr pages only |
+
 ---
 
 ## Disclaimer
- 
+
 This extension is intended for personal use. It does not bypass any login wall or download any content — it only adjusts what audio plays in your own browser session.
- 

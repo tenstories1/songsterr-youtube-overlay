@@ -1,111 +1,43 @@
-// Mutes any MIDI / web audio output
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const OriginalAudioContext = AudioContext;
-window.AudioContext = window.webkitAudioContext = function(...args) {
-  const ctx = new OriginalAudioContext(...args);
-  // Mute the master output
-  ctx.destination.channelCount = 1;
-  const muter = ctx.createGain();
-  muter.gain.value = 0;
-  muter.connect(ctx.destination);
-  // Reroute any future connections to the muted gain node
-  const origConnect = AudioNode.prototype.connect;
-  AudioNode.prototype.connect = function(dest, ...rest) {
-    if (dest === ctx.destination) {
-      return origConnect.call(this, muter, ...rest);
-    }
-    return origConnect.call(this, dest, ...rest);
-  };
-  return ctx;
-};
+// ── Relay the popup's mute setting to mute.js (page world) ────────────────────
+const MUTE_EVENT = 'songsterr-overlay:set-muted';
 
-// Finds YouTube video ID from the Songsterr Page
-function getYouTubeId() {
-  // Checking Songsterr page for meta tags or the DOM (they embed YouTube data in the page)
-  const ogVideo = document.querySelector('meta[property="og:video"]');
-  if (ogVideo) {
-    const match = ogVideo.content.match(/embed\/([a-zA-Z0-9_-]{11})/);
-    if (match) return match[1];
+function sendMuteState(muted) {
+  document.dispatchEvent(new CustomEvent(MUTE_EVENT, { detail: muted }));
+}
+
+chrome.storage.local.get({ midiMuted: true }, ({ midiMuted }) => sendMuteState(midiMuted));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.midiMuted) sendMuteState(changes.midiMuted.newValue);
+});
+
+// ── Dismiss "continue with sync pauses" popup only ────────────────────────────
+// A single native XPath lookup instead of reading textContent of every <a> in JS
+const SYNC_PAUSES_XPATH =
+  "//a[translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')" +
+  "='continue with sync pauses']";
+
+function dismissPopup() {
+  const link = document.evaluate(
+    SYNC_PAUSES_XPATH, document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+  ).singleNodeValue;
+  if (link) {
+    link.click();
+    console.log('[Songsterr Overlay] Dismissed popup');
   }
-  // Fallback: scan all script tags for a YouTube ID
-  const scripts = document.querySelectorAll('script');
-  for (const s of scripts) {
-    const match = s.textContent.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
-    if (match) return match[1];
-  }
-  return null;
 }
 
-// Injecting YouTube iframe overlay
-function injectYouTubeOverlay(videoId) {
-  if (document.getElementById('yt-overlay-iframe')) return;
+// Throttled observer — checks at most once per 300ms no matter how
+// many DOM mutations fire (Songsterr mutates constantly while playing)
+let throttleTimer = null;
+const observer = new MutationObserver(() => {
+  if (throttleTimer) return;
+  throttleTimer = setTimeout(() => {
+    throttleTimer = null;
+    dismissPopup();
+  }, 300);
+});
 
-  const wrapper = document.createElement('div');
-  wrapper.id = 'yt-overlay-wrapper';
-  wrapper.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 280px;
-    height: 158px;
-    z-index: 99999;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    background: #000;
-  `;
+observer.observe(document.body, { childList: true, subtree: true });
 
-  const iframe = document.createElement('iframe');
-  iframe.id = 'yt-overlay-iframe';
-  // autoplay=1, mute=0 so you hear the real audio
-  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=1`;
-  iframe.style.cssText = 'width:100%;height:100%;border:none;';
-  iframe.allow = 'autoplay; encrypted-media';
-
-  wrapper.appendChild(iframe);
-  document.body.appendChild(wrapper);
-}
-
-// Watch for playback starting
-function waitForPlayback() {
-  const observer = new MutationObserver(() => {
-    const videoId = getYouTubeId();
-    if (videoId) {
-      injectYouTubeOverlay(videoId);
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // Also try immediately on load
-  const videoId = getYouTubeId();
-  if (videoId) injectYouTubeOverlay(videoId);
-}
-
-waitForPlayback();
-
-// Auto dismiss paywall popup
-function dismissUpgradePopup() {
-  const observer = new MutationObserver(() => {
-    // Searching for "continue with sync pauses link"
-    const links = document.querySelectorAll('a, button, span');
-    for (const el of links) {
-      if (el.textContent.trim().toLowerCase().includes('continue with sync pauses')) {
-        el.click();
-        console.log('[Songsterr overlay] Dismised paywall popup');
-        return;
-      }
-    }
-
-    // Fallback: close any modals/overlays that appear
-    const modal = document.querySelector('[class*="modal"], [class*="Modal"], [class*="overlay"], [class*="Overlay"], [class*="paywall"], [class*="Paywall"]');
-    if (mopdal) {
-      // Find close button
-      const closeBtn = modal.querySelector('[class*="close"], [class*="Close"], [aria-label="close"]');
-      if (closeBtn) closeBtn.click();
-    }
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-
-dismissUpgradePopup();
+// Check immediately on load too
+dismissPopup();
